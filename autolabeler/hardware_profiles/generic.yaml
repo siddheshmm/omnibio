@@ -1,0 +1,10 @@
+byte_order: little
+channels: 1
+description: "Generic sensor \u2014 configure sample rate, channels, and format manually"
+name: Generic Sensor
+packet_format: csv
+packet_separator: ','
+sample_dtype: int16
+sample_rate: 1000
+udp_host: 127.0.0.1
+udp_port: 5000

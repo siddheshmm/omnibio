@@ -1,0 +1,10 @@
+byte_order: little
+channels: 1
+description: Backyard Brains Plant SpikerBox for plant biosignal recording
+name: Plant SpikerBox
+packet_format: csv
+packet_separator: ','
+sample_dtype: int16
+sample_rate: 10000
+udp_host: 127.0.0.1
+udp_port: 5000

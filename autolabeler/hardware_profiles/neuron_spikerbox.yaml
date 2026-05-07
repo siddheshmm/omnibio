@@ -1,0 +1,10 @@
+byte_order: little
+channels: 1
+description: Backyard Brains Neuron SpikerBox for neural signal recording
+name: Neuron SpikerBox
+packet_format: csv
+packet_separator: ','
+sample_dtype: int16
+sample_rate: 10000
+udp_host: 127.0.0.1
+udp_port: 5001

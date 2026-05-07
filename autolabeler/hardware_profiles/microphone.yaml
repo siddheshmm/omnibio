@@ -1,0 +1,10 @@
+byte_order: little
+channels: 1
+description: "Audio microphone \u2014 use tools/audio_bridge.py to forward mic input"
+name: Microphone
+packet_format: csv
+packet_separator: ','
+sample_dtype: int16
+sample_rate: 44100
+udp_host: 127.0.0.1
+udp_port: 5002

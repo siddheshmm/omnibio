@@ -1,0 +1,4 @@
+Model,Accuracy,F1-Score,ROC-AUC
+Logistic Regression,0.9809523809523809,0.967741935483871,0.9937777777777779
+Random Forest,1.0,1.0,1.0
+Gradient Boosting,1.0,1.0,1.0
