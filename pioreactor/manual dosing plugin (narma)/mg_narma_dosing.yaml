@@ -1,0 +1,51 @@
+---
+display_name: Mackey Glass / NARMA Dosing
+automation_name: mg_narma_dosing
+source: mg_narma_dosing
+description: >
+  Drives the media pump with a one-shot Mackey-Glass time series
+  (series_type=mackey_glass), a repeated Mackey-Glass motif
+  (series_type=mackey_glass_periodic), or a NARMA-10 nonlinear stochastic
+  series (series_type=narma10), scaled to [min_volume_ml, max_volume_ml] per
+  cycle. Equal waste is removed each cycle to maintain constant working volume.
+  The full input series is saved to the SQLite database
+  (table: mg_narma_input_series) at startup for later reservoir-readout
+  analysis.
+fields:
+  - key: duration
+    unit: min
+    label: Cycle interval
+    default: 5
+  - key: series_type
+    unit: null
+    label: "Time series type: mackey_glass, mackey_glass_periodic, or narma10"
+    default: mackey_glass_periodic
+    type: string
+  - key: total_cycles
+    unit: cycles
+    label: Total cycles (auto-stops after this many)
+    default: 72
+  - key: min_volume_ml
+    unit: mL
+    label: Minimum dosing volume
+    default: 0.1
+  - key: max_volume_ml
+    unit: mL
+    label: Maximum dosing volume
+    default: 0.9
+  - key: mg_tau
+    unit: null
+    label: "Mackey-Glass delay τ (17=weakly chaotic, 30=strongly chaotic)"
+    default: 17
+  - key: mg_period_cycles
+    unit: cycles
+    label: Mackey-Glass period length for periodic mode
+    default: 24
+  - key: mg_warmup
+    unit: steps
+    label: Mackey-Glass transient warmup steps (discard before use)
+    default: 500
+  - key: seed
+    unit: null
+    label: Random seed (for NARMA-10 reproducibility)
+    default: 42

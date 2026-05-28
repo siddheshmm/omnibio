@@ -1,0 +1,18 @@
+---
+chart_key: mg_narma_flow
+data_source: mg_narma_volumes
+data_source_column: volume_ml
+
+title: MG/NARMA Dosing Volume
+y_axis_label: Volume (mL)
+
+fixed_decimals: 4
+
+mqtt_topic: dosing_automation/current_volume_ml
+
+source: app
+
+interpolation: stepAfter
+
+lookback: 10000
+down_sample: false

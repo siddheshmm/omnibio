@@ -1,0 +1,4 @@
+experiment,pioreactor_unit,started_at,ended_at,automation_name,settings,json_settings,started_at_localtime,ended_at_localtime,hours_since_experiment_created
+Demo experiment,pioreactor01,2026-05-25T14:19:03.547000Z,2026-05-25T14:19:03.706000Z,mg_narma_dosing,eyJzdGF0ZSI6ImluaXQiLCJkdXJhdGlvbiI6MC4yfQ==,"{""state"":""init"",""duration"":0.2}",2026-05-25 20:04:03.547,2026-05-25 20:04:03.706,5678.026111111111
+Demo experiment,pioreactor01,2026-05-25T15:22:20.854000Z,2026-05-25T15:22:20.991000Z,mg_narma_dosing,eyJzdGF0ZSI6ImluaXQiLCJkdXJhdGlvbiI6NS4wfQ==,"{""state"":""init"",""duration"":5.0}",2026-05-25 21:07:20.854,2026-05-25 21:07:20.991,5679.080833333333
+Demo experiment,pioreactor01,2026-05-25T16:49:34.314000Z,2026-05-25T16:49:34.462000Z,mg_narma_dosing,eyJzdGF0ZSI6ImluaXQiLCJkdXJhdGlvbiI6Ni4wfQ==,"{""state"":""init"",""duration"":6.0}",2026-05-25 22:34:34.314,2026-05-25 22:34:34.462,5680.534722222223
