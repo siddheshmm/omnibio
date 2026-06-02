@@ -1,0 +1,3 @@
+experiment,pioreactor_unit,timestamp,channel,intensity,source_of_event,timestamp_localtime,hours_since_experiment_created
+experiment May,pioreactor01,2026-06-02T11:15:39.050Z,C,75.0,UI,2026-06-02 17:00:39.050,95.026388888889
+experiment May,pioreactor01,2026-06-02T14:15:30.183Z,C,0.0,UI,2026-06-02 20:00:30.183,98.023888888889
