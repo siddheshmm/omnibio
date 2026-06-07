@@ -1,0 +1,18 @@
+---
+chart_key: co2_temperature
+data_source: co2_readings
+data_source_column: temperature_c
+
+title: CO2 Sensor Temperature
+y_axis_label: Temperature (C)
+
+fixed_decimals: 2
+
+mqtt_topic: co2_reading/temperature
+
+source: app
+
+interpolation: linear
+
+lookback: 10000
+down_sample: false

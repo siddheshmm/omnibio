@@ -1,0 +1,18 @@
+---
+chart_key: co2_relative_humidity
+data_source: co2_readings
+data_source_column: relative_humidity
+
+title: CO2 Sensor Humidity
+y_axis_label: Relative humidity (%)
+
+fixed_decimals: 2
+
+mqtt_topic: co2_reading/relative_humidity
+
+source: app
+
+interpolation: linear
+
+lookback: 10000
+down_sample: false

@@ -61,6 +61,16 @@ class DualChannelLedCycle(LEDAutomationJob):
             "settable": True,
             "unit": "min",
         },
+        "initial_dark_min": {
+            "datatype": "float",
+            "settable": True,
+            "unit": "min",
+        },
+        "phase_sequence": {
+            "datatype": "string",
+            "settable": True,
+            "unit": None,
+        },
         "repeat_cycle": {
             "datatype": "integer",
             "settable": True,
@@ -76,7 +86,9 @@ class DualChannelLedCycle(LEDAutomationJob):
         channel_D_duration_min: float | str = 60,
 
         gap_duration_min: float | str = 60,
-        
+        initial_dark_min: float | str = 0,
+        phase_sequence: str = "",
+
         repeat_cycle: int | str = 1,
 
         **kwargs: Any,
@@ -91,14 +103,25 @@ class DualChannelLedCycle(LEDAutomationJob):
         self.channel_D_duration_min = float(channel_D_duration_min)
 
         self.gap_duration_min = float(gap_duration_min)
+        self.initial_dark_min = float(initial_dark_min)
+        self.phase_sequence = str(phase_sequence)
         
         self.repeat_cycle = int(repeat_cycle)
         if self.repeat_cycle < 1:
             raise ValueError("repeat_cycle must be >= 1")
+        if self.initial_dark_min < 0:
+            raise ValueError("initial_dark_min must be >= 0")
+        if self.gap_duration_min < 0:
+            raise ValueError("gap_duration_min must be >= 0")
+
+        self._phase_sequence = self._parse_phase_sequence(self.phase_sequence)
 
         self._timer = None
 
         # STATES:
+        # INITIAL_DARK
+        # SCHEDULE_PHASE
+        # SCHEDULE_GAP
         # C_ON
         # GAP_AFTER_C
         # D_ON
@@ -106,6 +129,7 @@ class DualChannelLedCycle(LEDAutomationJob):
 
         self._state = "C_ON"
         self._cycles_completed = 0
+        self._schedule_index = 0
 
     # ==========================================================
     # REQUIRED
@@ -113,6 +137,38 @@ class DualChannelLedCycle(LEDAutomationJob):
 
     def execute(self):
         return None
+
+    def _parse_phase_sequence(self, raw: str) -> list[str]:
+
+        if not raw.strip():
+            return []
+
+        aliases = {
+            "C": "C",
+            "R": "C",
+            "RED": "C",
+            "CHANNEL_C": "C",
+            "D": "D",
+            "B": "D",
+            "BLUE": "D",
+            "CHANNEL_D": "D",
+        }
+
+        sequence = []
+        for token in raw.replace(";", ",").split(","):
+            key = token.strip().upper()
+            if not key:
+                continue
+            if key not in aliases:
+                raise ValueError(
+                    "phase_sequence must contain only C/R/red or D/B/blue tokens"
+                )
+            sequence.append(aliases[key])
+
+        if not sequence:
+            raise ValueError("phase_sequence cannot be empty if provided")
+
+        return sequence
 
     # ==========================================================
     # LED HELPER
@@ -196,11 +252,107 @@ class DualChannelLedCycle(LEDAutomationJob):
 
         self.logger.info("Starting LED sequence")
 
+        if self._phase_sequence:
+            self._schedule_index = 0
+            self._cycles_completed = 0
+            if self.initial_dark_min > 0:
+                self._state = "INITIAL_DARK"
+            else:
+                self._state = "SCHEDULE_PHASE"
+
         self._run_next_state()
+
+    def _finish_automation(self):
+
+        self._state = "DONE"
+        self._stop_everything()
+
+        try:
+            self.set_state(self.DISCONNECTED)
+        except Exception:
+            pass
+
+    def _run_schedule_phase(self):
+
+        channel = self._phase_sequence[self._schedule_index]
+
+        if channel == "C":
+            self.logger.info(
+                "SCHEDULE -> RED/C phase %d/%d"
+                % (self._schedule_index + 1, len(self._phase_sequence))
+            )
+            self._set_leds(
+                c_intensity=self.channel_C_intensity,
+                d_intensity=0,
+            )
+            duration = self.channel_C_duration_min * 60
+        else:
+            self.logger.info(
+                "SCHEDULE -> BLUE/D phase %d/%d"
+                % (self._schedule_index + 1, len(self._phase_sequence))
+            )
+            self._set_leds(
+                c_intensity=0,
+                d_intensity=self.channel_D_intensity,
+            )
+            duration = self.channel_D_duration_min * 60
+
+        self._state = "SCHEDULE_GAP"
+        self._schedule_next_state(duration)
+
+    def _run_schedule_gap(self):
+
+        self.logger.info("SCHEDULE -> DARK GAP")
+        self._set_leds(0, 0)
+
+        self._schedule_index += 1
+
+        if self._schedule_index < len(self._phase_sequence):
+            self._state = "SCHEDULE_PHASE"
+            self._schedule_next_state(self.gap_duration_min * 60)
+            return
+
+        self._cycles_completed += 1
+
+        if self._cycles_completed < self.repeat_cycle:
+            self.logger.info(
+                "Schedule repeat %d/%d complete -> restarting after gap"
+                % (self._cycles_completed, self.repeat_cycle)
+            )
+            self._schedule_index = 0
+            self._state = "SCHEDULE_PHASE"
+            self._schedule_next_state(self.gap_duration_min * 60)
+            return
+
+        self.logger.info(
+            "Schedule repeat %d/%d complete -> automation finished"
+            % (self._cycles_completed, self.repeat_cycle)
+        )
+        self._finish_automation()
 
     def _run_next_state(self):
 
         if self.state != self.READY:
+            return
+
+        # ------------------------------------------------------
+        # PSEUDORANDOM / EXPLICIT SCHEDULE MODE
+        # ------------------------------------------------------
+
+        if self._state == "INITIAL_DARK":
+
+            self.logger.info("SCHEDULE -> INITIAL DARK")
+            self._set_leds(0, 0)
+            self._state = "SCHEDULE_PHASE"
+            self._schedule_next_state(self.initial_dark_min * 60)
+            return
+
+        if self._state == "SCHEDULE_PHASE":
+            self._run_schedule_phase()
+            return
+
+        if self._state == "SCHEDULE_GAP":
+            self._run_schedule_gap()
             return
 
         # ------------------------------------------------------
@@ -284,12 +436,6 @@ class DualChannelLedCycle(LEDAutomationJob):
                     % (self._cycles_completed, self.repeat_cycle)
                 )
 
-                self._state = "DONE"
-                self._stop_everything()
-
-                try:
-                    self.set_state(self.DISCONNECTED)
-                except Exception:
-                    pass
+                self._finish_automation()
 
                 return

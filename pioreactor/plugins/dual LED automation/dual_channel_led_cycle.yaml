@@ -3,18 +3,12 @@ display_name: Dual Channel LED Cycle
 automation_name: dual_channel_led_cycle
 
 description: >
-  Sequential LED scheduling automation.
-  Channel C turns ON first for its configured duration,
-  followed by a dark gap, then Channel D turns ON,
-  followed by another dark gap, and the cycle repeats.
-  Only one LED channel is active at a time.
+  Sequential LED scheduling automation. Channel C turns ON first for its
+  configured duration, followed by a dark gap, then Channel D turns ON. If an
+  explicit phase sequence is provided, the automation follows that red/blue
+  order instead. Only one LED channel is active at a time.
 
 fields:
-
-  # ─────────────────────────────────────────────
-  # CHANNEL C
-  # ─────────────────────────────────────────────
-
   - key: channel_C_intensity
     default: 50
     unit: "%"
@@ -24,10 +18,6 @@ fields:
     default: 180
     unit: min
     label: "Channel C ON duration"
-
-  # ─────────────────────────────────────────────
-  # CHANNEL D
-  # ─────────────────────────────────────────────
 
   - key: channel_D_intensity
     default: 50
@@ -39,18 +29,20 @@ fields:
     unit: min
     label: "Channel D ON duration"
 
-  # ─────────────────────────────────────────────
-  # GAP BETWEEN CHANNELS
-  # ─────────────────────────────────────────────
-
   - key: gap_duration_min
     default: 60
     unit: min
     label: "Dark gap duration"
 
-  # ─────────────────────────────────────────────
-  # REPEAT CYCLE COUNT
-  # ─────────────────────────────────────────────
+  - key: initial_dark_min
+    default: 60
+    unit: min
+    label: "Initial dark baseline"
+
+  - key: phase_sequence
+    default: ""
+    unit: null
+    label: "Explicit phase sequence"
 
   - key: repeat_cycle
     default: 1
