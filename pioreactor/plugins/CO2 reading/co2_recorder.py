@@ -70,7 +70,7 @@ class CO2Recorder(BackgroundJob):
         )
         self._client.on_message = self._on_message
 
-        topic = f"pioreactor/{self.unit}/{self.experiment}/co2_reading/+"
+        topic = f"pioreactor/{self.unit}/+/co2_reading/+"
         self._client.subscribe(topic)
         self._client.loop_start()
 
@@ -120,6 +120,7 @@ class CO2Recorder(BackgroundJob):
         if field == "co2":
             self._pending.co2_reading_ppm = value
             self.latest_co2_ppm = value
+            self._save_pending()
         elif field == "temperature":
             self._pending.temperature_c = value
             self.latest_temperature_c = value
@@ -129,15 +130,10 @@ class CO2Recorder(BackgroundJob):
         else:
             return
 
-        if (
-            self._pending.co2_reading_ppm is not None
-            and self._pending.temperature_c is not None
-            and self._pending.relative_humidity is not None
-        ):
-            self._save_pending()
-            self._pending = PendingReading()
-
     def _save_pending(self):
+        if self._pending.co2_reading_ppm is None:
+            return
+
         self._db.execute(
             """
             INSERT INTO co2_readings
@@ -153,6 +149,7 @@ class CO2Recorder(BackgroundJob):
                 self._pending.relative_humidity,
             ),
         )
+        self._pending.co2_reading_ppm = None
 
     def block_until_disconnected(self):
         try:
@@ -181,7 +178,7 @@ class CO2Recorder(BackgroundJob):
 @click.option("--experiment", default=None, help="Experiment name. Defaults to latest experiment.")
 def click_co2_recorder(unit, experiment):
     unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
+    experiment = experiment or get_latest_experiment_name() or unit
 
     with CO2Recorder(unit=unit, experiment=experiment) as job:
         job.block_until_disconnected()

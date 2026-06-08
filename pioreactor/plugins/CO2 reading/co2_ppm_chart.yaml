@@ -8,7 +8,7 @@ y_axis_label: CO2 (ppm)
 
 fixed_decimals: 0
 
-mqtt_topic: co2_reading/co2
+mqtt_topic: co2_recorder/latest_co2_ppm
 
 source: app
 

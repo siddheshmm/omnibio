@@ -8,7 +8,7 @@ y_axis_label: Temperature (C)
 
 fixed_decimals: 2
 
-mqtt_topic: co2_reading/temperature
+mqtt_topic: co2_recorder/latest_temperature_c
 
 source: app
 

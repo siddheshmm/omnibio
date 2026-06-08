@@ -8,7 +8,7 @@ const char *WIFI_SSID = "sid";
 const char *WIFI_PASSWORD = "hellosidd";
 
 // MQTT broker
-const char *MQTT_BROKER = "10.102.100.34";
+const char *MQTT_BROKER = "10.157.18.34";
 const int MQTT_PORT = 1883;
 const char *MQTT_USER = "pioreactor";
 const char *MQTT_PASSWORD = "raspberry";
