@@ -1,0 +1,12 @@
+chart_key: ph_readings
+data_source: ph_readings
+data_source_column: ph_reading
+title: pH Reading
+y_axis_label: pH
+fixed_decimals: 2
+mqtt_topic: ph_reading/reading
+payload_key: ph
+source: app
+interpolation: stepAfter
+down_sample: false
+y_axis_domain: [0.0, 14.0]

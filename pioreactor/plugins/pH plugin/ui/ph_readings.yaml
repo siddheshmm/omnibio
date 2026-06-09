@@ -1,0 +1,14 @@
+---
+display_name: pH Reading
+job_name: ph_reading
+display: true
+source: ph_reading
+description: Reads pH from the pH probe via ADS1115 on software I2C bus 3.
+published_settings:
+  - key: interval
+    unit: s
+    label: Sampling interval
+    description: How often to read pH in seconds.
+    type: numeric
+    default: "30"
+    display: true

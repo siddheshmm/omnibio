@@ -1,0 +1,10 @@
+dataset_name: ph_readings
+default_order_by: timestamp
+description: pH and voltage readings from the pH probe via ADS1115.
+display_name: pH Readings
+has_experiment: true
+has_unit: true
+source: ph_reading
+table: ph_readings
+timestamp_columns:
+- timestamp
