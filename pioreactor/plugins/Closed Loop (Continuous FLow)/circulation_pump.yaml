@@ -1,0 +1,13 @@
+---
+display_name: Circulation Pump
+job_name: circulation_pump
+display: true
+source: circulation_pump_plugin
+description: Closed-loop circulation between pio01, pio02, and the external beaker, via an Arduino over MQTT.
+published_settings:
+  - key: circulating
+    label: Circulating
+    description: Turns the 3 closed-loop pumps on/off (pio01 -> pio02 -> beaker -> pio01).
+    type: boolean
+    default: null
+    display: true
