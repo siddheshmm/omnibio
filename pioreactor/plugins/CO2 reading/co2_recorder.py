@@ -174,8 +174,8 @@ class CO2Recorder(BackgroundJob):
 
 
 @click.command(name="co2_recorder")
-@click.option("--unit", default=None, help="Pioreactor unit name. Defaults to this unit.")
-@click.option("--experiment", default=None, help="Experiment name. Defaults to latest experiment.")
+@click.option("--unit", default=None, help="pioreactor01")
+@click.option("--experiment", default=None, help="Default Experiment")
 def click_co2_recorder(unit, experiment):
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name() or unit
