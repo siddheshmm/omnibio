@@ -922,6 +922,7 @@ if __name__ == "__main__":
         "NH4SO4": "./data/ammonium sulphate",
         "Uracil": "./data/uracil",
         "Glucose": "./data/glucose",
+        "Salt": "./data/salt",
         "Vehicle": "./data/control",
     }
     run_all(EXPERIMENTS)
