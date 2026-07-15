@@ -80,7 +80,12 @@ PULSE_COLORS = {CHEM_EVENT: "tab:orange", GLUCOSE_EVENT: "tab:blue"}
 
 def _find(folder, prefix):
     matches = sorted(glob.glob(os.path.join(folder, f"{prefix}*.csv")))
-    return matches[0] if matches else None
+    if len(matches) > 1:
+        print(f"warning: multiple files match '{prefix}*.csv' in {folder} -- "
+              f"using the most recent by filename timestamp: {os.path.basename(matches[-1])}. "
+              f"(Others found: {[os.path.basename(m) for m in matches[:-1]]}. "
+              f"Put each experiment export in its own folder to avoid this.)")
+    return matches[-1] if matches else None
 
 
 def load_experiment(folder, name):
@@ -765,6 +770,107 @@ def run_stats(per_pulse, metrics=METRICS_TO_TEST, min_n=MIN_N_PER_GROUP, alpha=0
     return kw, pw
 
 
+# ======================================================================
+# CONTROL / VEHICLE-CORRECTED ANALYSIS
+# ======================================================================
+#
+# If you add a control (vehicle-only, or plain diluent) experiment to
+# EXPERIMENTS, set CONTROL_LABEL to its dict key below. Two things then
+# become available for free / with one extra call each:
+#
+#   1. The existing kruskal_by_sensor() / pairwise_tests_by_sensor() /
+#      run_stats() functions already include the control as just another
+#      group -- so "MgSO4 vs Control", "NH4SO4 vs Control", etc. show up
+#      automatically in the pairwise table. This tells you whether a
+#      chemical's pulse response is even distinguishable from the
+#      mechanical/dilution artifact of dosing liquid at all.
+#
+#   2. add_control_corrected_columns() baseline-subtracts the control's
+#      per-sensor median from every chemical's per-pulse metric, giving you
+#      a "{metric}_vs_control" column -- the chemical-attributable effect
+#      with the shared dosing-mechanics artifact removed. Then
+#      one_sample_vs_control_tests() runs a Wilcoxon signed-rank test
+#      (nonparametric one-sample test, appropriate for small n) asking
+#      "is this chemical's control-corrected effect actually different
+#      from zero?"
+
+CONTROL_LABEL = None  # e.g. "Control" or "Vehicle" -- set once you add a control folder to EXPERIMENTS
+
+
+def add_control_corrected_columns(per_pulse, control_label=CONTROL_LABEL, metrics=METRICS_TO_TEST):
+    """Subtract the control group's per-sensor median from every other
+    chemical's per-pulse values. Adds "{metric}_vs_control" columns.
+    No-op (returns per_pulse unchanged) if control_label isn't set or
+    isn't present in the data."""
+    if control_label is None:
+        print("CONTROL_LABEL not set -- skipping control-corrected columns (see run script comments)")
+        return per_pulse
+    if control_label not in per_pulse["chemical"].unique():
+        print(f"CONTROL_LABEL='{control_label}' not found in per_pulse['chemical'] -- check EXPERIMENTS key matches exactly")
+        return per_pulse
+
+    out = per_pulse.copy()
+    control = out[out["chemical"] == control_label]
+    for metric in metrics:
+        if metric not in out.columns:
+            continue
+        control_medians = control.groupby("sensor")[metric].median()
+        col = f"{metric}_vs_control"
+        out[col] = np.nan
+        not_control = out["chemical"] != control_label
+        out.loc[not_control, col] = out.loc[not_control].apply(
+            lambda row: row[metric] - control_medians.get(row["sensor"], np.nan), axis=1
+        )
+    return out
+
+
+def one_sample_vs_control_tests(per_pulse_corrected, metrics=METRICS_TO_TEST,
+                                 min_n=MIN_N_PER_GROUP, control_label=CONTROL_LABEL, alpha=0.05):
+    """For each (chemical, sensor, metric): Wilcoxon signed-rank test of
+    whether the control-corrected effect differs from zero -- i.e. is there
+    a chemical-attributable perturbation beyond the shared dosing-mechanics
+    artifact captured by the control? Requires add_control_corrected_columns()
+    to have been run first."""
+    rows = []
+    if control_label is None:
+        return pd.DataFrame(rows)
+
+    for metric in metrics:
+        col = f"{metric}_vs_control"
+        if col not in per_pulse_corrected.columns:
+            continue
+        treated = per_pulse_corrected[per_pulse_corrected["chemical"] != control_label]
+        for chem, cgrp in treated.groupby("chemical"):
+            for sensor, sgrp in cgrp.groupby("sensor"):
+                vals = sgrp[col].dropna().values
+                if len(vals) < min_n or np.allclose(vals, 0):
+                    continue
+                try:
+                    stat, p = stats.wilcoxon(vals)
+                except ValueError:
+                    continue
+                rows.append({
+                    "metric": metric,
+                    "chemical": chem,
+                    "sensor": sensor,
+                    "n": len(vals),
+                    "median_vs_control": np.median(vals),
+                    "wilcoxon_p": p,
+                })
+
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        for metric in out["metric"].unique():
+            mask = out["metric"] == metric
+            out.loc[mask, "wilcoxon_p_bh"] = _benjamini_hochberg(out.loc[mask, "wilcoxon_p"].values)
+        sig = out[out["wilcoxon_p_bh"] < alpha].sort_values("wilcoxon_p_bh")
+        print(f"\nControl-corrected (vs {control_label}) one-sample tests: "
+              f"{len(sig)}/{len(out)} chemical-sensor-metric combos significant at BH-corrected alpha={alpha}")
+        if not sig.empty:
+            print(sig[["metric", "chemical", "sensor", "median_vs_control", "wilcoxon_p", "wilcoxon_p_bh"]].to_string(index=False))
+    return out
+
+
 
 
 def run_all(experiments, outdir="./erc_pulse_analysis_out"):
@@ -794,15 +900,28 @@ def run_all(experiments, outdir="./erc_pulse_analysis_out"):
     kw.to_csv(os.path.join(outdir, "stats_kruskal_omnibus.csv"), index=False)
     pw.to_csv(os.path.join(outdir, "stats_pairwise_permutation.csv"), index=False)
 
+    if CONTROL_LABEL is not None:
+        if CONTROL_LABEL not in experiments:
+            print(f"CONTROL_LABEL='{CONTROL_LABEL}' is set but not a key in EXPERIMENTS -- skipping control-corrected analysis")
+        else:
+            corrected = add_control_corrected_columns(per_pulse, control_label=CONTROL_LABEL)
+            corrected.to_csv(os.path.join(outdir, "per_pulse_control_corrected.csv"), index=False)
+            osc = one_sample_vs_control_tests(corrected, control_label=CONTROL_LABEL)
+            osc.to_csv(os.path.join(outdir, "stats_vs_control_wilcoxon.csv"), index=False)
+
     print(f"\nDone. Outputs in {outdir}/")
     return per_pulse, agg
 
-
 # ======================================================================
 if __name__ == "__main__":
+    
+    CONTROL_LABEL = 'Vehicle'
+
     EXPERIMENTS = {
         "MgSO4": "./data/magnesium sulphate pulses",
         "NH4SO4": "./data/ammonium sulphate",
         "Uracil": "./data/uracil",
+        "Glucose": "./data/glucose",
+        "Vehicle": "./data/control",
     }
     run_all(EXPERIMENTS)
