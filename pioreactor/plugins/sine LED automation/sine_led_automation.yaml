@@ -1,0 +1,34 @@
+---
+display_name: Sine LED Automation
+
+automation_name: sine_led_automation
+
+source: sine_led_automation
+
+description: >
+  Scheduled sinusoidal and stepped intensity LED automation. Default runs a 3-hour
+  optical sine wave on Channel B (UV LED): 0% -> 10% -> 25% -> 35% -> 25% -> 10% -> 0%
+  holding each step for 30 minutes. Channel mapping: 1=A, 2=B (UV), 3=C, 4=D.
+  To customize sequence or timing, you can also run via CLI.
+
+fields:
+  - key: led_channel
+    unit: null
+    label: "LED Channel (1=A, 2=B for UV, 3=C, 4=D)"
+    default: 2
+
+  - key: minutes_per_step
+    unit: min
+    label: "Hold duration per step"
+    default: 30
+
+  - key: intensity_sequence
+    unit: null
+    label: "Intensity sequence (leave as default for 3h sine: 0,10,25,35,25,10,0)"
+    default: "0, 10, 25, 35, 25, 10, 0"
+    type: string
+
+  - key: repeat_cycles
+    unit: null
+    label: "Repeat full cycle count (0 = run indefinitely)"
+    default: 0
