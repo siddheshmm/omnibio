@@ -1,0 +1,63 @@
+---
+display_name: Manual Dosing Control
+automation_name: manual_dosing_control
+source: manual_dosing_control
+description: >
+  Scheduled dosing with custom volume sequence dosing or mathematical sine wave modulation.
+  To run the 4-hour symmetrical sine wave, leave volume_sequence as default. Set max_cycles
+  to auto-stop after a fixed number of cycles (e.g. 18 for 3 periods of 4 hours).
+fields:
+  - key: duration
+    unit: min
+    label: Schedule interval (minutes between cycles)
+    default: 40
+
+  - key: volume_sequence
+    unit: null
+    label: "Volume sequence (leave as default for 4h sine: 0.05, 0.10, 0.20, 0.25, 0.20, 0.10)"
+    default: "0.05, 0.10, 0.20, 0.25, 0.20, 0.10"
+    type: string
+
+  - key: media_ml_mean
+    unit: mL
+    label: Media volume (mean, used if volume_sequence is empty)
+    default: 0.15
+
+  - key: media_ml_amplitude
+    unit: mL
+    label: Sine wave amplitude (used if volume_sequence is empty)
+    default: 0.10
+
+  - key: sine_period_cycles
+    unit: cycles
+    label: Sine period (used if volume_sequence is empty)
+    default: 6
+
+  - key: alt_media_ml
+    unit: mL
+    label: Alt-media volume
+    default: 0.0
+
+  - key: waste_ml
+    unit: mL
+    label: Waste volume
+    default: 0.15
+
+  - key: pump_sequence
+    unit: null
+    label: "Pump sequence"
+    default: waste_first
+    type: string
+    options:
+      - waste_first
+      - media_first
+
+  - key: pause_between_pumps_s
+    unit: s
+    label: Pause between pumps
+    default: 0
+
+  - key: max_cycles
+    unit: cycles
+    label: Max cycles (18 for 3 periods / 12 hours, 0 = unlimited)
+    default: 18

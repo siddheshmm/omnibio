@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-manual_dosing_control.py  — v0.6.0
-────────────────────────────────────
-Independent scheduled control of media, alt-media, and waste pumps,
-with sine wave modulation of media volume.
+manual_dosing_control.py  — v1.0.0 (Pioreactor 26.5.0+ Compatible)
+───────────────────────────────────────────────────────────────────
+Independent scheduled dosing automation for Pioreactor 26.5.0+.
 
-Changes in v0.6.0:
-  - Added max_cycles parameter: automation stops automatically after
-    max_cycles cycles. Set to 0 (default) to run indefinitely.
+Features:
+  - Fully self-scheduled: uses an internal daemon Timer for rock-solid timing
+    on Pioreactor 26.5.0+ (where base class shared duration timers were removed).
+  - Supports custom volume sequences (e.g. "0.05, 0.10, 0.20, 0.25, 0.20, 0.10")
+    or continuous mathematical sine wave modulation.
+  - Immediate execution of Cycle 0 on startup at t=0s.
+  - Dedicated SQLite table logging (`sine_media_volumes`).
+  - Safe lifecycle cleanup on pause, sleep, and disconnect.
 """
 from __future__ import annotations
 import time
 import math
+from threading import Timer
+from typing import Any
 
 from pioreactor.automations.dosing.base import DosingAutomationJobContrib
 from pioreactor.automations import events
@@ -21,10 +27,10 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.config import config
 
 
-__plugin_summary__ = "Scheduled dosing with sine wave modulation and optional auto-stop"
-__plugin_version__ = "0.6.0"
+__plugin_summary__ = "Self-scheduled dosing automation with sine wave and sequence support"
+__plugin_version__ = "1.0.0"
 __plugin_name__    = "Manual Dosing Control"
-__plugin_author__  = "Your Name"
+__plugin_author__  = "Siddhesh"
 __plugin_homepage__ = "https://pioreactor.com"
 
 
@@ -44,28 +50,32 @@ class MaxCyclesReachedEvent(events.AutomationEvent):
 
 class ManualDosingControl(DosingAutomationJobContrib):
     """
-    Scheduled dosing with sine wave media volume modulation.
+    Scheduled dosing with explicit volume sequence or sine wave media volume modulation.
 
-    media_volume(cycle) = media_ml_mean
-                        + media_ml_amplitude * sin(2π * cycle / sine_period_cycles)
+    Mode A (Explicit Sequence - Recommended):
+      Provide volume_sequence="0.05, 0.10, 0.20, 0.25, 0.20, 0.10".
+      Fires Cycle 0 immediately at t=0, then every `duration` minutes.
+
+    Mode B (Mathematical Sine Wave):
+      media_volume(cycle) = media_ml_mean
+                          + media_ml_amplitude * sin(2π * cycle / sine_period_cycles)
 
     Set sine_period_cycles = 0 to use fixed media_ml_mean (no sine wave).
-
-    pump_sequence:
-      "waste_first"  → waste → media → alt-media
-      "media_first"  → media → alt-media → waste
-
-    pause_between_pumps_s:
-      Seconds to wait between each pump firing within a cycle.
-
-    max_cycles:
-      Stop automatically after this many cycles.
-      Set to 0 to run indefinitely (default).
     """
 
     automation_name = "manual_dosing_control"
 
     published_settings = {
+        "duration": {
+            "datatype": "float",
+            "settable": True,
+            "unit": "min",
+        },
+        "volume_sequence": {
+            "datatype": "string",
+            "settable": True,
+            "unit": "mL",
+        },
         "media_ml_mean": {
             "datatype": "float",
             "settable": True,
@@ -111,22 +121,31 @@ class ManualDosingControl(DosingAutomationJobContrib):
             "settable": False,
             "unit": "mL",
         },
+        "current_cycle": {
+            "datatype": "integer",
+            "settable": False,
+            "unit": None,
+        },
     }
 
     def __init__(
         self,
-        media_ml_mean: float = 1.0,
-        media_ml_amplitude: float = 0.0,
-        sine_period_cycles: float = 0.0,
+        duration: float | str = 40.0,
+        volume_sequence: str = "0.05, 0.10, 0.20, 0.25, 0.20, 0.10",
+        media_ml_mean: float = 0.15,
+        media_ml_amplitude: float = 0.10,
+        sine_period_cycles: float = 6.0,
         alt_media_ml: float = 0.0,
-        waste_ml: float = 0.0,
+        waste_ml: float = 0.15,
         pump_sequence: str = "waste_first",
         pause_between_pumps_s: float = 0.0,
-        max_cycles: int = 0,
-        **kwargs,
+        max_cycles: int = 18,
+        **kwargs: Any,
     ):
         super().__init__(**kwargs)
 
+        self.duration              = float(duration)
+        self.volume_sequence       = str(volume_sequence).strip()
         self.media_ml_mean         = float(media_ml_mean)
         self.media_ml_amplitude    = float(media_ml_amplitude)
         self.sine_period_cycles    = float(sine_period_cycles)
@@ -135,10 +154,23 @@ class ManualDosingControl(DosingAutomationJobContrib):
         self.pump_sequence         = str(pump_sequence).strip().lower()
         self.pause_between_pumps_s = float(pause_between_pumps_s)
         self.max_cycles            = int(max_cycles)
-        self._cycle_count          = 0
-        self.current_media_ml      = self.media_ml_mean
 
-        # ── Set up dedicated SQLite writer ────────────────────────────────
+        if self.duration <= 0:
+            raise ValueError("duration must be greater than 0")
+
+        self.current_cycle = 0
+        self._timer: Timer | None = None
+
+        # Parse explicit sequence if provided
+        self.sequence = [
+            float(x.strip())
+            for x in self.volume_sequence.split(",")
+            if x.strip()
+        ]
+
+        self.current_media_ml = self._calculate_media_volume()
+
+        # Set up dedicated SQLite writer
         db_path = config.get("storage", "database")
         self._db = sqlite_worker.Sqlite3Worker(db_path)
         self._db.execute("""
@@ -150,13 +182,17 @@ class ManualDosingControl(DosingAutomationJobContrib):
             )
         """)
 
+        if self.sequence:
+            mode_desc = f"explicit sequence={self.sequence}"
+        elif self.sine_period_cycles > 0:
+            mode_desc = f"sine (mean={self.media_ml_mean}mL, amp={self.media_ml_amplitude}mL, period={self.sine_period_cycles}c)"
+        else:
+            mode_desc = f"fixed (media={self.media_ml_mean}mL)"
+
         self.logger.info(
-            f"Manual Dosing Control v0.6.0 ready | "
+            f"Manual Dosing Control v1.0.0 ready | "
             f"Schedule every {self.duration} min | "
-            f"sequence={self.pump_sequence} | "
-            f"media_mean={self.media_ml_mean} mL, "
-            f"amplitude={self.media_ml_amplitude} mL, "
-            f"sine_period={self.sine_period_cycles} cycles | "
+            f"mode: {mode_desc} | "
             f"alt_media={self.alt_media_ml} mL, "
             f"waste={self.waste_ml} mL | "
             + (f"max_cycles={self.max_cycles}" if self.max_cycles > 0 else "max_cycles=unlimited")
@@ -176,23 +212,98 @@ class ManualDosingControl(DosingAutomationJobContrib):
         except Exception as e:
             self.logger.debug(f"Could not save sine media volume to DB: {e}")
 
-    # ── Cleanup ───────────────────────────────────────────────────────────────
+    # ── State Machine & Timers ────────────────────────────────────────────────
 
-    def on_disconnected(self) -> None:
-        try:
-            self._db.close()
-        except Exception:
-            pass
+    def execute(self):
+        """Required by DosingAutomationJobContrib base class."""
+        return None
 
-    # ── Sine wave calculator ──────────────────────────────────────────────────
+    def on_ready(self) -> None:
+        super().on_ready()
+        self.logger.info("Manual Dosing Control started. Triggering Step 0...")
+        self._run_step()
+
+    def _run_step(self) -> None:
+        if self.state != self.READY:
+            return
+
+        # Check if max_cycles reached
+        if self.max_cycles > 0 and self.current_cycle >= self.max_cycles:
+            self.logger.info(
+                f"Completed all {self.max_cycles} configured cycle(s). Stopping automation."
+            )
+            self._stop_everything()
+            self.set_state(self.DISCONNECTED)
+            return
+
+        # Calculate volume for this cycle
+        media_volume = self._calculate_media_volume()
+        self.current_media_ml = media_volume
+        self._save_media_volume(media_volume)
+
+        self.logger.info(
+            f"Cycle {self.current_cycle}"
+            + (f"/{self.max_cycles}" if self.max_cycles > 0 else "")
+            + f" | media = {media_volume} mL"
+        )
+
+        # Determine pump order
+        if self.pump_sequence == "waste_first":
+            order = ["waste", "media", "alt_media"]
+        else:
+            order = ["media", "alt_media", "waste"]
+
+        volumes = {
+            "media":     media_volume,
+            "alt_media": self.alt_media_ml,
+            "waste":     self.waste_ml,
+        }
+
+        pumps_to_run = [p for p in order if volumes[p] > 0]
+
+        for i, pump in enumerate(pumps_to_run):
+            self._fire_pump(pump, volumes[pump])
+            if i < len(pumps_to_run) - 1 and self.pause_between_pumps_s > 0:
+                time.sleep(self.pause_between_pumps_s)
+
+        self.current_cycle += 1
+
+        # Check if another step should be scheduled
+        if self.max_cycles > 0 and self.current_cycle >= self.max_cycles:
+            self.logger.info(
+                f"Completed all {self.max_cycles} cycle(s). Automation complete."
+            )
+            self._stop_everything()
+            self.set_state(self.DISCONNECTED)
+            return
+
+        duration_s = self.duration * 60.0
+        self.logger.info(
+            f"Next dosing cycle in {self.duration} min ({duration_s:.0f}s)"
+        )
+        self._timer = Timer(duration_s, self._run_step)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _stop_everything(self) -> None:
+        """Cancel active timer immediately."""
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+
+    # ── Volume calculator ─────────────────────────────────────────────────────
 
     def _calculate_media_volume(self) -> float:
+        if self.sequence:
+            return round(self.sequence[self.current_cycle % len(self.sequence)], 4)
+
         if self.sine_period_cycles <= 0:
             return self.media_ml_mean
+
         volume = (
             self.media_ml_mean
             + self.media_ml_amplitude
-            * math.sin(2 * math.pi * self._cycle_count / self.sine_period_cycles)
+            * math.sin(2 * math.pi * self.current_cycle / self.sine_period_cycles)
         )
         return max(0.0, round(volume, 4))
 
@@ -237,79 +348,18 @@ class ManualDosingControl(DosingAutomationJobContrib):
             remove_waste(ml=volume_ml, **self._pump_kwargs)
         return True
 
-    # ── Scheduled execute ─────────────────────────────────────────────────────
+    # ── Lifecycle Handlers ────────────────────────────────────────────────────
 
-    def execute(self) -> events.AutomationEvent:
+    def on_sleeping(self) -> None:
+        super().on_sleeping()
+        self.logger.info("Manual Dosing Control sleeping. Pausing timer.")
+        self._stop_everything()
 
-        # ── Check max_cycles before doing anything ────────────────────────
-        if self.max_cycles > 0 and self._cycle_count >= self.max_cycles:
-            self.logger.info(
-                f"Reached max_cycles={self.max_cycles}. "
-                f"Stopping dosing automation."
-            )
-            self.set_state(self.DISCONNECTED)
-            return MaxCyclesReachedEvent(
-                f"Stopped after {self.max_cycles} cycles as configured.",
-                {"max_cycles": self.max_cycles, "total_cycles_run": self._cycle_count},
-            )
-
-        # ── Calculate sine wave volume for this cycle ─────────────────────
-        media_volume = self._calculate_media_volume()
-
-        # Publish to MQTT (live chart)
-        self.current_media_ml = media_volume
-
-        # Save to dedicated SQLite table (historical chart)
-        self._save_media_volume(media_volume)
-
-        self.logger.info(
-            f"Cycle {self._cycle_count}"
-            + (f"/{self.max_cycles}" if self.max_cycles > 0 else "")
-            + f" | media = {media_volume} mL"
-            + (" (sine)" if self.sine_period_cycles > 0 else " (fixed)")
-        )
-
-        # ── Determine pump order ──────────────────────────────────────────
-        if self.pump_sequence == "waste_first":
-            order = ["waste", "media", "alt_media"]
-        else:
-            order = ["media", "alt_media", "waste"]
-
-        volumes = {
-            "media":     media_volume,
-            "alt_media": self.alt_media_ml,
-            "waste":     self.waste_ml,
-        }
-
-        pumps_to_run = [p for p in order if volumes[p] > 0]
-
-        if not pumps_to_run:
-            self._cycle_count += 1
-            return NoDoseEvent("All volumes are 0 — nothing dosed this cycle.")
-
-        fired = []
-        for i, pump in enumerate(pumps_to_run):
-            self._fire_pump(pump, volumes[pump])
-            fired.append(f"{pump}={volumes[pump]} mL")
-            if i < len(pumps_to_run) - 1 and self.pause_between_pumps_s > 0:
-                self.logger.info(
-                    f"Waiting {self.pause_between_pumps_s}s before next pump..."
-                )
-                time.sleep(self.pause_between_pumps_s)
-
-        self._cycle_count += 1
-        summary = ", ".join(fired)
-        return ScheduledDoseEvent(
-            f"Cycle {self._cycle_count - 1}"
-            + (f"/{self.max_cycles}" if self.max_cycles > 0 else "")
-            + f" ({self.pump_sequence}): {summary}",
-            {
-                "media_ml":              media_volume,
-                "alt_media_ml":          self.alt_media_ml,
-                "waste_ml":              self.waste_ml,
-                "pump_sequence":         self.pump_sequence,
-                "sine_period_cycles":    self.sine_period_cycles,
-                "cycle_count":           self._cycle_count - 1,
-                "max_cycles":            self.max_cycles,
-            },
-        )
+    def on_disconnected(self) -> None:
+        self.logger.info("Manual Dosing Control disconnected.")
+        self._stop_everything()
+        try:
+            self._db.close()
+        except Exception:
+            pass
+        super().on_disconnected()
