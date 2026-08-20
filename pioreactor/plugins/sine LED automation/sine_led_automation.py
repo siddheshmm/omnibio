@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-sine_led_automation.py  — v1.1.0
+sine_led_automation.py  — v1.2.0
 ────────────────────────────────────
 Scheduled sinusoidal and stepped intensity LED automation for Pioreactor.
 
 Features:
   - Full Web UI & CLI compatibility:
       • Channel mapping supports integers (1=A, 2=B, 3=C, 4=D) and letters ('A', 'B', 'C', 'D').
-      • Default fallback sequence: auto-loads "0, 10, 25, 35, 25, 10, 0" (3-hour cycle)
-        even if UI numeric input sends 0.
+      • Default fallback sequence: auto-loads "0, 10, 25, 35, 25, 10, 0" (3-hour cycle).
+  - Explicit multi-channel safety:
+      • Automatically turns OFF (0.0%) all other user LED channels so only the active channel shines.
+      • When active channel reaches 0% step, it explicitly turns OFF (0.0%).
+      • When automation stops, sleeps, or disconnects, all channels are forced to 0.0%.
   - Dedicated SQLite table logging (`sine_led_intensities`)
   - Live MQTT publishing for UI monitoring
-  - Automatic turn-off (0.0%) on disconnect or stop
 """
 from __future__ import annotations
 
@@ -28,7 +30,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 
 __plugin_name__    = "Sine LED Automation"
 __plugin_summary__ = "Scheduled sine wave and stepped intensity LED automation"
-__plugin_version__ = "1.1.0"
+__plugin_version__ = "1.2.0"
 __plugin_author__  = "Siddhesh"
 __plugin_homepage__ = "https://pioreactor.com"
 
@@ -41,20 +43,23 @@ CHANNEL_MAP = {
     1: "A", 2: "B", 3: "C", 4: "D",
 }
 
+USER_CHANNELS = ("B", "C", "D")
+
 
 class SineLedAutomation(LEDAutomationJob):
     """
     Scheduled sine wave / stepped intensity LED automation.
 
     intensity_sequence:
-      Comma-separated list of intensity percentages (e.g. "0, 10, 25, 35, 25, 10, 0").
+      Comma-separated list of intensity percentages (e.g. "0, 5, 25, 45, 25, 5, 0").
       If 0 or blank is passed from UI, the default 3-hour sine sequence is automatically used.
 
     minutes_per_step:
       Duration in minutes to hold each intensity level before advancing to the next.
 
     led_channel:
-      LED channel. Accepts 'A', 'B', 'C', 'D' or integers 1=A, 2=B (default UV), 3=C, 4=D.
+      Active LED channel. Accepts 'A', 'B', 'C', 'D' or integers 1=A, 2=B, 3=C, 4=D.
+      All other user LED channels are automatically forced to 0% to prevent light contamination.
 
     repeat_cycles:
       Number of times to repeat the full sequence. Set to 0 to run indefinitely.
@@ -155,7 +160,6 @@ class SineLedAutomation(LEDAutomationJob):
         if raw is None:
             return list(DEFAULT_INTENSITY_SEQUENCE)
         if isinstance(raw, (int, float)):
-            # If UI sends a single 0, load default 3-hour sine wave
             if float(raw) == 0:
                 return list(DEFAULT_INTENSITY_SEQUENCE)
             return [float(raw)]
@@ -193,18 +197,27 @@ class SineLedAutomation(LEDAutomationJob):
         except Exception as e:
             self.logger.debug(f"Could not save LED intensity to DB: {e}")
 
-    # ── LED Control ───────────────────────────────────────────────────────────
+    # ── LED Control (with Multi-Channel Muting) ───────────────────────────────
 
     def _set_led(self, intensity: float) -> None:
-        """Set LED intensity and log state."""
+        """
+        Set active LED intensity and explicitly turn off other user LED channels.
+        """
         self.current_intensity = intensity
         self._save_led_intensity(intensity)
         self.logger.info(
-            f"LED Channel {self.led_channel} set to {intensity:.1f}% "
+            f"LED Channel {self.led_channel} -> {intensity:.1f}% "
             f"(Step {self.current_step + 1}/{len(self.sequence)})"
         )
+
+        # Build payload: set active channel to target intensity, and ensure other user channels are 0.0%
+        led_payload = {self.led_channel: intensity}
+        for ch in USER_CHANNELS:
+            if ch != self.led_channel:
+                led_payload[ch] = 0.0
+
         led_intensity(
-            {self.led_channel: intensity},
+            led_payload,
             unit=self.unit,
             experiment=self.experiment,
         )
@@ -253,21 +266,34 @@ class SineLedAutomation(LEDAutomationJob):
         self._timer.start()
 
     def _stop_everything(self) -> None:
-        """Cancel active timer and turn off LED immediately."""
+        """Cancel active timer and turn off all user LED channels immediately."""
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
-        self._set_led(0.0)
+
+        # Turn OFF all user channels
+        turn_off_payload = {ch: 0.0 for ch in USER_CHANNELS}
+        turn_off_payload[self.led_channel] = 0.0
+        self.current_intensity = 0.0
+
+        try:
+            led_intensity(
+                turn_off_payload,
+                unit=self.unit,
+                experiment=self.experiment,
+            )
+        except Exception:
+            pass
 
     # ── Lifecycle Handlers ────────────────────────────────────────────────────
 
     def on_sleeping(self) -> None:
         super().on_sleeping()
-        self.logger.info("Sine LED Automation sleeping. Turning off LED.")
+        self.logger.info("Sine LED Automation sleeping. Turning off all LEDs.")
         self._stop_everything()
 
     def on_disconnected(self) -> None:
-        self.logger.info("Sine LED Automation disconnected. Turning off LED.")
+        self.logger.info("Sine LED Automation disconnected. Turning off all LEDs.")
         self._stop_everything()
         try:
             self._db.close()
