@@ -1,0 +1,30 @@
+{
+  "exchanges": {
+    "glucose": "r_1714",
+    "ammonium": "r_1654",
+    "sulfate": "r_2060",
+    "uracil": "r_2090",
+    "sodium": "r_2049",
+    "chloride": "r_4593",
+    "oxygen": "r_1992",
+    "growth": "r_2111"
+  },
+  "yields": {
+    "yield_biomass_on_glucose": 0.08110025381639172,
+    "yield_biomass_on_ammonium": 0.1519026708585152,
+    "yield_biomass_on_sulfate": 7.181433459759498,
+    "yield_biomass_on_oxygen": 0.034482426685175316
+  },
+  "metabolites": [],
+  "reactions": [
+    "r_1714",
+    "r_1654",
+    "r_2060",
+    "r_2090",
+    "r_2049",
+    "r_4593",
+    "r_1992",
+    "r_2111"
+  ],
+  "S_core": []
+}

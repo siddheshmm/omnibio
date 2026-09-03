@@ -1,0 +1,79 @@
+# Dynamic Artificial Metabolic Network (dAMN) Configuration
+# Following the Faulon neural-mechanistic biocomputing framework
+
+model_name: yeast_damn_reservoir
+organism: Saccharomyces cerevisiae
+gem_model_path: ../dfba/models/yeast-GEM-src/model/yeast-GEM.xml
+dataset_dir: ../narx/artifacts/dataset/runs
+
+# All 14 physical sensor state dimensions
+sensor_targets:
+  - norm_od
+  - growth_rate
+  - co2_ppm
+  - od_45
+  - od_90
+  - od_135
+  - nm_415
+  - nm_445
+  - nm_480
+  - nm_515
+  - nm_555
+  - nm_590
+  - nm_630
+  - nm_680
+
+# Exogenous bioreactor fluid inputs
+input_columns:
+  - add_media_ml
+  - add_alt_media_ml
+  - remove_waste_ml
+  - dose_total_ml
+
+# Baseline reactor conditions
+working_volume_ml: 13.5
+bin_minutes: 5.0
+
+baseline_medium_g_per_l:
+  glucose: 35.0
+  ammonium: 5.0
+  sulfate: 2.0
+  sodium: 0.5
+  chloride: 0.75
+  uracil: 0.05
+
+stock_concentrations_g_per_l:
+  glucose: 75.0
+  salt: 40.0
+  ammonium_sulfate: 30.0
+  magnesium_sulfate: 30.0
+  uracil: 10.0
+  control: 0.0
+
+molecular_weights_g_per_mol:
+  glucose: 180.156
+  ammonium: 18.039
+  sulfate: 96.06
+  uracil: 112.08
+  sodium: 22.99
+  chloride: 35.45
+  ammonium_sulfate: 132.14
+  magnesium_sulfate: 120.37
+  salt: 58.44
+
+# AMN Neural Architecture Settings
+amn:
+  latent_dim: 8          # Dimension of internal biological reservoir memory h(t)
+  hidden_dim: 64         # Width of kinetic regulation layers
+  num_hidden_layers: 2
+  stoichiometric_penalty_weight: 0.1   # lambda_stoich for ||S * v||^2
+  flux_smoothness_weight: 0.01
+
+# Training Settings
+training:
+  batch_size: 16
+  window_steps: 24       # 24 steps = 2 hours trajectory per training window
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  epochs: 80
+  seed: 42
