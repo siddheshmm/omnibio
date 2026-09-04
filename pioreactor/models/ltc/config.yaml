@@ -1,0 +1,51 @@
+# Configuration for Liquid Time-Constant (LTC) Yeast Bioreactor Digital Twin
+
+model_name: yeast_ltc_digital_twin
+organism: Saccharomyces cerevisiae
+
+paths:
+  dataset_dir: artifacts/dataset/runs
+  manifest_path: artifacts/dataset/manifest.csv
+  scalers_path: artifacts/dataset/scalers.json
+  checkpoint_dir: artifacts/model
+  rollout_dir: artifacts/rollouts
+  benchmark_dir: artifacts/benchmarks
+
+# Architecture settings
+model:
+  input_dim: 6            # add_media, add_alt, remove_waste, dose_total, temp_c, uv_intensity
+  hidden_dim: 32           # Dimension of LTC continuous hidden state
+  num_sensors: 14          # All 14 physical sensor channels
+  unfolding_steps: 2       # Fused ODE solver sub-steps per 5-min observation bin
+  dt_min: 5.0              # Continuous time macro-step (minutes)
+  tau_min: 1.0             # Fast reaction limit (minutes)
+  tau_max: 60.0            # Passive relaxation limit (minutes)
+
+# Training settings
+training:
+  epochs: 80
+  batch_size: 16
+  window_size: 36          # 36 bins = 3.0 hours trajectory window
+  stride: 6                # 6 bins = 30 minutes stride
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  grad_clip_norm: 1.0
+  seed: 42
+  eval_every: 5
+
+# Sensor targets
+sensor_targets:
+  - norm_od
+  - growth_rate
+  - co2_ppm
+  - od_45
+  - od_90
+  - od_135
+  - nm_415
+  - nm_445
+  - nm_480
+  - nm_515
+  - nm_555
+  - nm_590
+  - nm_630
+  - nm_680
