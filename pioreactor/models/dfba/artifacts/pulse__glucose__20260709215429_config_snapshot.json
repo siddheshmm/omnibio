@@ -1,0 +1,154 @@
+{
+  "organism": "Saccharomyces cerevisiae",
+  "strain_label": "INS 491 / INS 300",
+  "model_version": "yeast-GEM (SysBioChalmers, Yeast9-compatible SBML)",
+  "assumptions": {
+    "stock_units": "w/v percent interpreted as g/L",
+    "baseline_medium_note": "Inoculum grown in ~10% sugar for ~6 h, then 2-3 mL inoculum added to 10 mL of 2-5% glucose medium in the vial.",
+    "od_calibration_note": "No OD-to-dry-weight calibration available. norm_od_to_biomass_g_per_l is a provisional scale factor and must be treated as uncertain.",
+    "unmodeled_stressors": [
+      "temperature",
+      "UV",
+      "osmotic shock from rapid pulses",
+      "magnesium (no exchange reaction in yeast-GEM)"
+    ]
+  },
+  "working_volume_ml": 13.5,
+  "bin_minutes": 5.0,
+  "norm_od_to_biomass_g_per_l": 0.15,
+  "baseline_medium_g_per_l": {
+    "glucose": 35.0,
+    "ammonium": 5.0,
+    "sulfate": 2.0,
+    "sodium": 0.5,
+    "chloride": 0.75,
+    "uracil": 0.05
+  },
+  "molecular_weights_g_per_mol": {
+    "glucose": 180.156,
+    "ammonium": 18.039,
+    "sulfate": 96.06,
+    "uracil": 112.08,
+    "sodium": 22.99,
+    "chloride": 35.45,
+    "ammonium_sulfate": 132.14,
+    "magnesium_sulfate": 120.37,
+    "salt": 58.44
+  },
+  "stock_concentrations_g_per_l": {
+    "glucose": 75.0,
+    "salt": 40.0,
+    "ammonium_sulfate": 30.0,
+    "magnesium_sulfate": 30.0,
+    "uracil": 10.0,
+    "control": 0.0
+  },
+  "condition_aliases": {
+    "nitro": "nitrogen"
+  },
+  "conditions": {
+    "glucose": {
+      "stock_key": "glucose",
+      "metabolites": {
+        "glucose": 1.0
+      }
+    },
+    "salt": {
+      "stock_key": "salt",
+      "metabolites": {
+        "sodium": 1.0,
+        "chloride": 1.0
+      }
+    },
+    "nitrogen": {
+      "stock_key": "ammonium_sulfate",
+      "metabolites": {
+        "ammonium": 2.0,
+        "sulfate": 1.0
+      }
+    },
+    "sulfur": {
+      "stock_key": "magnesium_sulfate",
+      "metabolites": {
+        "sulfate": 1.0
+      }
+    },
+    "uracil": {
+      "stock_key": "uracil",
+      "metabolites": {
+        "uracil": 1.0
+      }
+    },
+    "control": {
+      "stock_key": "control",
+      "metabolites": {}
+    }
+  },
+  "exchange_candidates": {
+    "glucose": [
+      "r_1714"
+    ],
+    "ammonium": [
+      "r_1654"
+    ],
+    "sulfate": [
+      "r_2060"
+    ],
+    "uracil": [
+      "r_2090"
+    ],
+    "sodium": [
+      "r_2049"
+    ],
+    "chloride": [
+      "r_4593"
+    ],
+    "oxygen": [
+      "r_1992"
+    ],
+    "growth": [
+      "r_2111"
+    ]
+  },
+  "exchange_name_patterns": {
+    "glucose": [
+      "D-glucose exchange"
+    ],
+    "ammonium": [
+      "ammonium exchange"
+    ],
+    "sulfate": [
+      "sulphate exchange",
+      "sulfate exchange"
+    ],
+    "uracil": [
+      "uracil exchange"
+    ],
+    "sodium": [
+      "sodium exchange"
+    ],
+    "chloride": [
+      "chloride exchange"
+    ],
+    "oxygen": [
+      "oxygen exchange"
+    ],
+    "growth": [
+      "growth"
+    ]
+  },
+  "uptake_kinetics": {
+    "vmax_mmol_per_gdw_per_h": 0.5,
+    "monod_K_mmol_per_L": {
+      "glucose": 0.05,
+      "ammonium": 0.1,
+      "sulfate": 0.05,
+      "uracil": 0.01,
+      "sodium": 1.0,
+      "chloride": 1.0
+    }
+  },
+  "aerobic": {
+    "oxygen_lower_bound": -20.0
+  }
+}

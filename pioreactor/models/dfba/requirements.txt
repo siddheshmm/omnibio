@@ -1,0 +1,6 @@
+cobra>=0.29
+appdirs>=1.4
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+PyYAML>=6.0

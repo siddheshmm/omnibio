@@ -1,0 +1,41 @@
+{
+  "resolved_exchanges": {
+    "glucose": "r_1714",
+    "ammonium": "r_1654",
+    "sulfate": "r_2060",
+    "uracil": "r_2090",
+    "sodium": "r_2049",
+    "chloride": "r_4593",
+    "oxygen": "r_1992",
+    "growth": "r_2111"
+  },
+  "condition": "nitro",
+  "condition_config": {
+    "stock_key": "ammonium_sulfate",
+    "metabolites": {
+      "ammonium": 2.0,
+      "sulfate": 1.0
+    }
+  },
+  "initial_biomass_gdw_per_l": 0.4161278000167088,
+  "initial_concentrations_mmol_per_l": {
+    "glucose": 194.2760718488421,
+    "ammonium": 277.1772271190199,
+    "sulfate": 20.820320632937747,
+    "uracil": 0.44610992148465384,
+    "sodium": 21.74858634188778,
+    "chloride": 21.156558533145272
+  },
+  "solver_message": "The solver successfully reached the end of the integration interval.",
+  "assumptions": {
+    "stock_units": "w/v percent interpreted as g/L",
+    "baseline_medium_note": "Inoculum grown in ~10% sugar for ~6 h, then 2-3 mL inoculum added to 10 mL of 2-5% glucose medium in the vial.",
+    "od_calibration_note": "No OD-to-dry-weight calibration available. norm_od_to_biomass_g_per_l is a provisional scale factor and must be treated as uncertain.",
+    "unmodeled_stressors": [
+      "temperature",
+      "UV",
+      "osmotic shock from rapid pulses",
+      "magnesium (no exchange reaction in yeast-GEM)"
+    ]
+  }
+}

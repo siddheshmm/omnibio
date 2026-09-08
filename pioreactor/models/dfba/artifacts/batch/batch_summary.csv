@@ -1,0 +1,15 @@
+run_table,condition,points,solver_success,final_biomass_gdw_per_l,final_volume_ml,status
+mackey_glass__glucose__20260901143358.csv,glucose,94,True,0.08835509581871141,13.5,ok
+mackey_glass__nitro__20260901224037.csv,nitro,85,True,0.2940678547295753,13.629577462412621,ok
+mackey_glass__salt__20260901143936.csv,salt,91,True,0.10847741641546765,13.70922078118575,ok
+
+mackey_glass__sulfur__20260902080307.csv,sulfur,85,True,0.5506740143869188,13.083616115150356,ok
+pulse__control__20260705115653.csv,control,124,True,0.19068272396530225,13.5,ok
+pulse__glucose__20260709215429.csv,glucose,173,True,0.1420850720870404,13.5,ok
+pulse__nitrogen__20260703122850.csv,nitrogen,162,True,0.14283173421046455,23.287366193163756,ok
+pulse__nitrogen__20260804092944.csv,nitrogen,137,True,0.12485931674070452,13.5,ok
+pulse__nitrogen__20260805104326.csv,nitrogen,139,True,0.15232209507698238,13.5,ok
+pulse__nitrogen__20260805225017.csv,nitrogen,132,True,0.171347359759338,13.5,ok
+pulse__nitrogen__20260806102506.csv,nitrogen,136,True,0.18240902774317036,13.5,ok
+pulse__salt__20260715130728.csv,salt,163,True,0.19953200979172445,13.5,ok
+pulse__salt__20260814171607.csv,salt,144,True,0.10490770273340091,13.5,ok
