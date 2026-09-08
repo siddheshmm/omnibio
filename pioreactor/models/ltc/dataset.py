@@ -89,9 +89,10 @@ def discover_all_runs(data_root: Path) -> list[DiscoveredRun]:
     """Discover pulse, sine, and mackey-glass runs across chem, temp, and uv."""
     runs: list[DiscoveredRun] = []
 
-    # 1. Pulse experiments (chemical dosing)
+    # 1. Pulse experiments (chemical dosing, temperature, UV)
     pulse_root = data_root / "pulse exp"
     if pulse_root.exists():
+        # Chem dosing
         for dosing_path in pulse_root.rglob("dosing_events-*.csv"):
             match = RUN_ID_RE.search(dosing_path.name)
             if not match:
@@ -99,6 +100,20 @@ def discover_all_runs(data_root: Path) -> list[DiscoveredRun]:
             rel = dosing_path.relative_to(pulse_root)
             condition = rel.parts[0]
             runs.append(DiscoveredRun(dosing_path.parent, match.group(1), condition, "pulse", "chem", dosing_path))
+        # Temperature modulation
+        p_temp = pulse_root / "temperature"
+        if p_temp.exists():
+            for anchor in p_temp.rglob("temperature_readings-*.csv"):
+                match = RUN_ID_RE.search(anchor.name)
+                if match:
+                    runs.append(DiscoveredRun(anchor.parent, match.group(1), "temp", "pulse", "temp", anchor))
+        # UV irradiation
+        p_uv = pulse_root / "uv"
+        if p_uv.exists():
+            for anchor in p_uv.rglob("led_change_events-*.csv"):
+                match = RUN_ID_RE.search(anchor.name)
+                if match:
+                    runs.append(DiscoveredRun(anchor.parent, match.group(1), "uv", "pulse", "uv", anchor))
 
     # 2. Sine wave encoding
     sine_root = data_root / "sine wave encoding"
@@ -457,36 +472,40 @@ class LtcDataset(Dataset):
 def get_stratified_splits(
     manifest_df: pd.DataFrame,
     seed: int = 42,
+    include_all_modalities: bool = True,
 ) -> tuple[list[str], list[str], list[str]]:
-    """Partition runs into Training, In-Distribution Validation, and Held-Out Benchmarks.
+    """Partition runs into Training and Validation across chem, temp, and UV inputs.
     
-    Rules:
-      - Training & Validation strictly draw from pulse and sine runs.
-      - Uracil (x1) and Control (x1) stay in Training.
-      - 1 pulse run each of Glucose, Salt, Nitrogen, Sulfur are held out for Validation.
-      - Mackey-Glass runs can form an unseen benchmark split.
+    If include_all_modalities=True:
+      - Uses all pulse, sine, and mackey-glass runs (39 runs total).
+      - Holds out 1 run from multi-replicate groups for validation:
+          glucose, nitrogen, salt, sulfur, temp, uv.
+      - Training receives all remaining runs (~33 runs).
     """
     np.random.seed(seed)
 
-    # 1. Benchmark set: all mackey_glass runs (kept strictly unseen if requested)
-    bench_keys = manifest_df[manifest_df["modality"] == "mackey_glass"]["run_key"].tolist()
+    if not include_all_modalities:
+        bench_keys = manifest_df[manifest_df["modality"] == "mackey_glass"]["run_key"].tolist()
+        dosing_manifest = manifest_df[manifest_df["modality"].isin(["pulse", "sine"])]
+        pulse_runs = dosing_manifest[dosing_manifest["modality"] == "pulse"]
+        val_keys = []
+        for cond in ["glucose", "nitrogen", "salt", "sulfur"]:
+            cond_keys = pulse_runs[pulse_runs["condition"] == cond]["run_key"].tolist()
+            if cond_keys:
+                val_keys.append(np.random.choice(cond_keys))
+        train_keys = [k for k in dosing_manifest["run_key"].tolist() if k not in val_keys]
+        return train_keys, val_keys, bench_keys
 
-    # 2. Candidate train/val runs: pulse and sine
-    dosing_manifest = manifest_df[manifest_df["modality"].isin(["pulse", "sine"])]
-    pulse_runs = dosing_manifest[dosing_manifest["modality"] == "pulse"]
-
+    # All-inclusive multimodal split
     val_keys = []
-    for cond in ["glucose", "nitrogen", "salt", "sulfur"]:
+    pulse_runs = manifest_df[manifest_df["modality"] == "pulse"]
+    for cond in ["glucose", "nitrogen", "salt", "sulfur", "temp", "uv"]:
         cond_keys = pulse_runs[pulse_runs["condition"] == cond]["run_key"].tolist()
-        if cond_keys:
-            chosen = np.random.choice(cond_keys)
-            val_keys.append(chosen)
+        if len(cond_keys) > 1:
+            val_keys.append(str(np.random.choice(cond_keys)))
 
-    train_keys = [
-        k for k in dosing_manifest["run_key"].tolist()
-        if k not in val_keys
-    ]
-
+    train_keys = [k for k in manifest_df["run_key"].tolist() if k not in val_keys]
+    bench_keys = []  # continuous 25 May MG and 4D Rossler serve as held-out biocomputing benchmarks
     return train_keys, val_keys, bench_keys
 
 

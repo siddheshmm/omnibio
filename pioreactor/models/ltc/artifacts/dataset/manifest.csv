@@ -25,6 +25,12 @@ pulse:chem:sulfur:20260813211237,pulse,chem,sulfur,20260813211237,111,pulse__che
 pulse:chem:sulfur:20260813212104,pulse,chem,sulfur,20260813212104,111,pulse__chem__sulfur__20260813212104.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__chem__sulfur__20260813212104.csv
 pulse:chem:sulfur:20260814100658,pulse,chem,sulfur,20260814100658,111,pulse__chem__sulfur__20260814100658.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__chem__sulfur__20260814100658.csv
 pulse:chem:uracil:20260715124827,pulse,chem,uracil,20260715124827,127,pulse__chem__uracil__20260715124827.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__chem__uracil__20260715124827.csv
+pulse:temp:temp:20260904085950,pulse,temp,temp,20260904085950,93,pulse__temp__temp__20260904085950.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__temp__temp__20260904085950.csv
+pulse:temp:temp:20260904090547,pulse,temp,temp,20260904090547,78,pulse__temp__temp__20260904090547.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__temp__temp__20260904090547.csv
+pulse:temp:temp:20260904091054,pulse,temp,temp,20260904091054,80,pulse__temp__temp__20260904091054.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__temp__temp__20260904091054.csv
+pulse:uv:uv:20260905150354,pulse,uv,uv,20260905150354,81,pulse__uv__uv__20260905150354.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__uv__uv__20260905150354.csv
+pulse:uv:uv:20260905150930,pulse,uv,uv,20260905150930,74,pulse__uv__uv__20260905150930.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__uv__uv__20260905150930.csv
+pulse:uv:uv:20260905151517,pulse,uv,uv,20260905151517,70,pulse__uv__uv__20260905151517.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\pulse__uv__uv__20260905151517.csv
 sine:chem:glucose:20260823121413,sine,chem,glucose,20260823121413,138,sine__chem__glucose__20260823121413.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\sine__chem__glucose__20260823121413.csv
 sine:chem:nitro:20260823121923,sine,chem,nitro,20260823121923,146,sine__chem__nitro__20260823121923.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\sine__chem__nitro__20260823121923.csv
 sine:chem:salt:20260715130728,sine,chem,salt,20260715130728,135,sine__chem__salt__20260715130728.csv,D:\omnibio\pioreactor\models\ltc\artifacts\dataset\runs\sine__chem__salt__20260715130728.csv

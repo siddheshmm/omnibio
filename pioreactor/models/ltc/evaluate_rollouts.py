@@ -79,11 +79,18 @@ def evaluate_single_run(
 
 
 def main() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    manifest = pd.read_csv(DEFAULT_MANIFEST)
-    scalers = NormalizationScalers.load(SCALERS_PATH)
+    parser = argparse.ArgumentParser(description="Evaluate LTC rollouts")
+    parser.add_argument("--checkpoint", type=Path, default=CHECKPOINT_PATH)
+    parser.add_argument("--scalers", type=Path, default=SCALERS_PATH)
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--output-csv", type=str, default="rollout_metrics.csv")
+    args = parser.parse_args()
 
-    ckpt = torch.load(CHECKPOINT_PATH, map_location="cpu")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    manifest = pd.read_csv(args.manifest)
+    scalers = NormalizationScalers.load(args.scalers)
+
+    ckpt = torch.load(args.checkpoint, map_location="cpu")
     cfg = ckpt.get("config", {})
     m_cfg = cfg.get("model", {})
 
@@ -125,7 +132,7 @@ def main() -> None:
         print(f"  [{idx + 1:02d}/{len(manifest):02d}] {row['run_key']:40s} | norm_od MAE: {od_mae:.4f} | CO2 MAE: {co2_mae:.1f}")
 
     df_summary = pd.DataFrame(all_metrics)
-    summary_path = OUTPUT_DIR / "rollout_metrics.csv"
+    summary_path = OUTPUT_DIR / args.output_csv
     df_summary.to_csv(summary_path, index=False)
     print(f"\nSaved rollout metrics summary to: {summary_path}")
 
