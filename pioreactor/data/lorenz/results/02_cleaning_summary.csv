@@ -1,0 +1,6 @@
+stream,flagged_samples,notes
+stirring stall log clusters,2,clustered warning bursts
+co2_reading_ppm,78,"nonphysical values, long MQTT gaps, Hampel outliers, stall windows"
+co2_temperature_c,75,NaN/nonphysical/outlier/stall samples
+relative_humidity,95,NaN/nonphysical/outlier/stall samples
+growth_rate,466,Hampel outliers and stall windows
