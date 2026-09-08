@@ -1,0 +1,16 @@
+initial_volume_ml: 13.5
+lags: 12
+horizons: [1, 6, 12, 24]
+test_size: 0.2
+seed: 42
+min_train_samples: 30
+min_test_samples: 10
+training_targets: all
+
+core_targets:
+  - norm_od
+  - growth_rate
+  - co2_ppm
+  - od_45
+  - od_90
+  - od_135
